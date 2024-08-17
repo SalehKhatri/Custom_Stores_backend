@@ -46,6 +46,8 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   addresses: [addressSchema],
+  resetToken: String,
+  resetTokenExpiration: Date,
 }, {
   timestamps: true,
 });

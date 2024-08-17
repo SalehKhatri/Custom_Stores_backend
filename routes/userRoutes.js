@@ -5,6 +5,9 @@ const {
   getUserProfile,
   updateUserProfile,
   addOrUpdateAddress,
+  forgotPassword,
+  resetPassword,
+  getUserOrders, 
 } = require("../controllers/userController");
 const { protect } = require("../middlewares/authMiddleware");
 
@@ -22,6 +25,13 @@ router
   .route("/profile")
   .get(protect, getUserProfile)     // Get user profile
   .put(protect, updateUserProfile); // Update user profile
+
+// Routes to reset password
+router.post("/forgot-password", forgotPassword); // User requests for reset token
+router.post("/reset-password/:token", resetPassword); //Uses reset token to change password
+
+// Route to get user's orders
+router.get("/orders", protect, getUserOrders);
 
 // Route to add or update a user address
 // Requires authentication
