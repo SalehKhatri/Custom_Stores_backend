@@ -12,6 +12,17 @@ const registerSchema = Joi.object({
   name: Joi.string().required(), // User's name
   email: Joi.string().email().required(), // User's email (must be valid email format)
   password: Joi.string().min(6).required(), // User's password (must be at least 6 characters long)
+  phoneNumber: Joi.string().length(10).required(),
+  addresses: Joi.array().items(
+    Joi.object({
+      street: Joi.string().required(), // Street address
+      city: Joi.string().required(), // City
+      state: Joi.string().required(), // State
+      zipCode: Joi.string().required(), // Zip code
+      country: Joi.string().required(), // Country
+      isDefault: Joi.boolean().default(false), // Optional, default to false
+    })
+  ).min(1).required(), // At least one address is required
   isAdmin: Joi.boolean(), // Optional field to designate if user is an admin
 });
 
@@ -43,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Check if user already exists
   const userExists = await User.findOne({ email: value.email });
   if (userExists) {
-    return res.status(400).json({ message: 'User already exists' });
+    return res.status(409).json({ message: 'User already exists' });
   }
 
   // Hash the user's password before saving
@@ -53,7 +64,9 @@ const registerUser = asyncHandler(async (req, res) => {
   const user = await User.create({
     name: value.name,
     email: value.email,
+    phoneNumber: value.phoneNumber,
     password: hashedPassword,
+    addresses: value.addresses,
     isAdmin: value.isAdmin || false,
   });
 
@@ -63,13 +76,16 @@ const registerUser = asyncHandler(async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      phoneNumber: user.phoneNumber,
       isAdmin: user.isAdmin,
+      addresses: user.addresses,
       token: generateToken(user),
     });
   } else {
     res.status(400).json({ message: 'Invalid user data' });
   }
 });
+
 
 // @desc    Authenticate user & get token
 // @route   POST /api/users/login
@@ -86,17 +102,16 @@ const authUser = asyncHandler(async (req, res) => {
 
   // Compare password with hashed password
   if (user && (await bcrypt.compare(value.password, user.password))) {
+    const { password, ...userData } = user.toObject(); // Exclude password from the user data
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
+      ...userData,
       token: generateToken(user),
     });
   } else {
     res.status(401).json({ message: 'Invalid email or password' });
   }
 });
+
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -132,6 +147,9 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (req.body.password) {
       user.password = await bcrypt.hash(req.body.password, 10);
     }
+    if (req.body.addresses) {
+      user.addresses = req.body.addresses;
+    }
 
     // Save updated user and respond
     const updatedUser = await user.save();
@@ -140,7 +158,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       name: updatedUser.name,
       email: updatedUser.email,
       isAdmin: updatedUser.isAdmin,
-      token: generateToken(updatedUser._id),
+      addresses: updatedUser.addresses,
+      token: generateToken(updatedUser),
     });
   } else {
     res.status(404).json({ message: 'User not found' });
@@ -168,13 +187,17 @@ const forgotPassword = asyncHandler(async (req, res) => {
   // Generate reset token
   const resetToken = generateResetToken();
 
-  // Save reset token to user
-  user.resetToken = resetToken;
-  user.resetTokenExpiration = Date.now() + 3600000; // 1 hour
-  await user.save();
+  // Update reset token and expiration without triggering validation on other fields
+  await User.updateOne(
+    { _id: user._id },
+    {
+      resetToken,
+      resetTokenExpiration: Date.now() + 3600000, // 1 hour
+    }
+  );
 
   // Send email with reset link
-  const resetLink = `http://localhost:5000/api/user/reset-password/${resetToken}`;
+  const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
   // Use a service like Nodemailer to send the email
   await sendResetEmail(user.email, resetLink);
 
@@ -208,10 +231,13 @@ const resetPassword = asyncHandler(async (req, res) => {
   user.password = await bcrypt.hash(newPassword, 10);
   user.resetToken = undefined;
   user.resetTokenExpiration = undefined;
-  await user.save();
 
-  res.json({ message: 'Password has been reset' });
+  // Save the user document without validating other fields
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({ message: 'Password has been reset' });
 });
+
 
 
 // @desc    Get user orders
