@@ -71,7 +71,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Respond with user data and token
   if (user) {
-    sendWelcomeEmail(name)
+   await sendWelcomeEmail(user.email,user.name)
     res.status(201).json({
       _id: user._id,
       name: user.name,
