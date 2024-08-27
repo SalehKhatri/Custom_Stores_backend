@@ -47,6 +47,7 @@ const addToCart = asyncHandler(async (req, res) => {
         productId: product._id,
         name: product.name,
         price: productPrice,
+        image:product.primaryImage,
         quantity,
         totalCost: productPrice * quantity,
       });
@@ -64,6 +65,7 @@ const addToCart = asyncHandler(async (req, res) => {
           productId: product._id,
           name: product.name,
           price: productPrice,
+          image:product.primaryImage,
           quantity,
           totalCost: productPrice * quantity,
         },

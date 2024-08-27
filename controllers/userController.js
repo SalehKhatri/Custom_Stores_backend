@@ -3,27 +3,27 @@ const User = require('../models/userModel');
 const bcrypt = require('bcryptjs');
 const Joi = require('joi');
 const { generateToken } = require("../utils/jwtUtils");
-const { sendResetEmail } = require('../utils/mailer');
+const { sendResetEmail, sendVerificationEmail, sendWelcomeEmail } = require('../utils/mailer');
 const generateResetToken = require('../utils/generateResetToken');
 const Order = require('../models/orderModel');
+const generateEmailToken = require('../utils/generateEmailToken');
+const Cart = require('../models/cartModel');
+const { name } = require('body-parser');
 
 // Validation schema for user registration and login
 const registerSchema = Joi.object({
   name: Joi.string().required(), // User's name
   email: Joi.string().email().required(), // User's email (must be valid email format)
   password: Joi.string().min(6).required(), // User's password (must be at least 6 characters long)
-  phoneNumber: Joi.string().length(10).required(),
-  addresses: Joi.array().items(
-    Joi.object({
-      street: Joi.string().required(), // Street address
-      city: Joi.string().required(), // City
-      state: Joi.string().required(), // State
-      zipCode: Joi.string().required(), // Zip code
-      country: Joi.string().required(), // Country
-      isDefault: Joi.boolean().default(false), // Optional, default to false
-    })
-  ).min(1).required(), // At least one address is required
-  isAdmin: Joi.boolean(), // Optional field to designate if user is an admin
+  phoneNumber: Joi.string().length(10).required(), // Phone number (length of 10 digits)
+  address: Joi.object({ // Changed from addresses to address
+    street: Joi.string().required(), // Street address
+    city: Joi.string().required(), // City
+    state: Joi.string().required(), // State
+    zipCode: Joi.string().required(), // Zip code
+    country: Joi.string().required(), // Country
+    isDefault: Joi.boolean().default(false), // Whether the address is default, defaults to false
+  }).required(), // Single address object is required
 });
 
 const loginSchema = Joi.object({
@@ -66,25 +66,89 @@ const registerUser = asyncHandler(async (req, res) => {
     email: value.email,
     phoneNumber: value.phoneNumber,
     password: hashedPassword,
-    addresses: value.addresses,
-    isAdmin: value.isAdmin || false,
+    address: value.address,
   });
 
   // Respond with user data and token
   if (user) {
+    sendWelcomeEmail(name)
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       phoneNumber: user.phoneNumber,
-      isAdmin: user.isAdmin,
-      addresses: user.addresses,
+      address: user.address,
       token: generateToken(user),
     });
   } else {
     res.status(400).json({ message: 'Invalid user data' });
   }
 });
+
+// @desc    Send email verification OTP
+// @route   POST /api/users/send-email-otp
+// @access  Public
+const sendEmailOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // Validate email
+  const { error } = Joi.string().email().required().validate(email);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  // Find user by email
+  const user = await User.findOne({ email });
+  if(user.isEmailVerified){
+    return res.status(409).json({message:"Email is already verified!"})
+  }
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  // Generate email verification token (OTP)
+  const emailVerificationToken = generateEmailToken();
+
+  // Save the token to the user's document
+  user.emailVerificationToken = emailVerificationToken;
+  await user.save({validateBeforeSave:false});
+
+  // Send OTP email
+  await sendVerificationEmail(user.email, emailVerificationToken);
+
+  res.json({ message: 'Verification email sent' });
+});
+
+// @desc    Verify email with OTP
+// @route   POST /api/users/verify-email
+// @access  Public
+const verifyEmailOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  // Validate email and OTP
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+    otp: Joi.string().length(4).required(), // Assuming OTP is 6 digits
+  });
+  const { error } = schema.validate({ email, otp });
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+
+  // Find user by email and check OTP
+  const user = await User.findOne({ email, emailVerificationToken: otp });
+  if (!user) {
+    return res.status(400).json({ message: 'Invalid OTP or email' });
+  }
+
+  // Verify the email and clear the token
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  await user.save({validateBeforeSave:false});
+
+  res.json({ message: 'Email verified successfully' });
+});
+
 
 
 // @desc    Authenticate user & get token
@@ -118,15 +182,22 @@ const authUser = asyncHandler(async (req, res) => {
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
   // Fetch user profile using authenticated user's ID
-  const user = await User.findById(req.user.id);
+  const user = await User.findById(req.user.id,"-password");
 
-  if (user) {
+  if (user) { 
+     // Fetch the user's cart
+     const cart = await Cart.findOne({ user: req.user.id });
+
+     // Calculate the total number of items in the cart
+     const totalCartItems = cart ? cart.cartItems.reduce((acc, item) => acc + item.quantity, 0) : 0;
+
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
-      isAdmin: user.isAdmin,
-      addresses: user.addresses,
+      phoneNumber:user.phoneNumber,
+      address: user.address,
+      totalCartItems,
     });
   } else {
     res.status(404).json({ message: 'User not found' });
@@ -147,8 +218,8 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (req.body.password) {
       user.password = await bcrypt.hash(req.body.password, 10);
     }
-    if (req.body.addresses) {
-      user.addresses = req.body.addresses;
+    if (req.body.address) {
+      user.address = req.body.address;
     }
 
     // Save updated user and respond
@@ -157,8 +228,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       _id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
-      isAdmin: updatedUser.isAdmin,
-      addresses: updatedUser.addresses,
+      address: updatedUser.address,
       token: generateToken(updatedUser),
     });
   } else {
@@ -255,10 +325,10 @@ const getUserOrders = asyncHandler(async (req, res) => {
 });
 
 
-// @desc    Add or update user address
+// @desc    Update user address
 // @route   PUT /api/users/address
 // @access  Private
-const addOrUpdateAddress = asyncHandler(async (req, res) => {
+const updateAddress = asyncHandler(async (req, res) => {
   // Validate address data with Joi
   const { error, value } = addressSchema.validate(req.body);
   if (error) {
@@ -269,33 +339,27 @@ const addOrUpdateAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
 
   if (user) {
-    const existingAddressIndex = user.addresses.findIndex(
-      (addr) => addr._id.toString() === value._id
-    );
+    // Update address (assumes only one address)
+    user.address = value;
 
-    if (existingAddressIndex > -1) {
-      // Update existing address
-      user.addresses[existingAddressIndex] = value;
-    } else {
-      // Add new address
-      user.addresses.push(value);
-    }
-
-    // Save updated user and respond with updated addresses
+    // Save updated user and respond with updated address
     const updatedUser = await user.save();
-    res.json(updatedUser.addresses);
+    res.json(updatedUser.address);
   } else {
     res.status(404).json({ message: 'User not found' });
   }
 });
 
+
 module.exports = {
   registerUser,
+  sendEmailOTP,
+  verifyEmailOTP,
   authUser,
   getUserProfile,
   updateUserProfile,
   forgotPassword,
   resetPassword,
   getUserOrders,
-  addOrUpdateAddress,
+  updateAddress,
 };

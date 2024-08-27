@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  phoneNumber:{
+  phoneNumber: {
     type: String,
     required: true,
     unique: true,
@@ -46,13 +46,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  isAdmin: {
+  address: addressSchema, // Changed from an array to a single address object
+  resetToken: String,
+  resetTokenExpiration: Date,
+  emailVerificationToken: String,
+  isEmailVerified: {
     type: Boolean,
     default: false,
   },
-  addresses: [addressSchema],
-  resetToken: String,
-  resetTokenExpiration: Date,
 }, {
   timestamps: true,
 });

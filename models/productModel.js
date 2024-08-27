@@ -35,6 +35,10 @@ const productSchema = new mongoose.Schema({
       ],
     },
   ],
+  primaryImage: {
+    type: String, 
+    required: true,  
+  },
   features: {
     type: String,
     required: true, // Product features are required

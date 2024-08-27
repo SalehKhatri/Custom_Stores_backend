@@ -4,10 +4,12 @@ const {
   authUser,
   getUserProfile,
   updateUserProfile,
-  addOrUpdateAddress,
   forgotPassword,
   resetPassword,
-  getUserOrders, 
+  getUserOrders,
+  sendEmailOTP, 
+  verifyEmailOTP,
+  updateAddress
 } = require("../controllers/userController");
 const { protect } = require("../middlewares/authMiddleware");
 
@@ -15,6 +17,10 @@ const router = express.Router();
 
 // Route to register a new user
 router.post("/register", registerUser);
+
+//Routes to verify email during registration
+router.post("/send-email-otp", sendEmailOTP)
+router.post("/verify-email-otp", verifyEmailOTP)
 
 // Route to authenticate a user and get a token
 router.post("/login", authUser);
@@ -33,8 +39,8 @@ router.post("/reset-password/:token", resetPassword); //Uses reset token to chan
 // Route to get user's orders
 router.get("/orders", protect, getUserOrders);
 
-// Route to add or update a user address
+// Route to update a user address
 // Requires authentication
-router.put("/address", protect, addOrUpdateAddress);
+router.put("/address", protect, updateAddress);
 
 module.exports = router;

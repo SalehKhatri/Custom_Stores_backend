@@ -8,6 +8,7 @@ const { logger, logInfo } = require("./config/logger");
 const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
 const cartRoutes = require("./routes/cartRoutes")
+const adminRoutes = require("./routes/adminRoutes")
 const { errorHandler } = require("./middlewares/errorMiddleware");
 
 const app = express();
@@ -29,6 +30,7 @@ app.get("/", (req, res) => {
 app.use("/api/products", productRoutes); // Route for handling product-related requests
 app.use("/api/user", userRoutes); // Route for handling user-related requests
 app.use('/api/cart', cartRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Start server
 app.listen(PORT, () => {

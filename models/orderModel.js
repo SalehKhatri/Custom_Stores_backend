@@ -10,8 +10,13 @@ const orderSchema = mongoose.Schema(
         price: { type: Number, required: true },
       },
     ],
-    status: { type: String, enum: ["Pending", "Shipped", "Delivered", "Canceled"], default: "Pending" },
+    status: {
+      type: String,
+      enum: ["Pending", "Shipped", "Delivered", "Canceled"],
+      default: "Pending",
+    },
     trackingId: { type: String },
+    deliveryPartner: { type: String, required: true }, // New field for delivery partner
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

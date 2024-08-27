@@ -17,6 +17,7 @@ const productSchema = Joi.object({
       images: Joi.array().items(Joi.string().required()).required(),
     })
   ),
+  primaryImage: Joi.string().required(),
   features: Joi.string().required(),
   category: Joi.string().required(), // Category is required
   isNewArrival: Joi.boolean(),
@@ -88,9 +89,13 @@ const createProduct = asyncHandler(async (req, res) => {
 
     // Replace the colors in req.body with the colors including image URLs
     req.body.colors = colorsWithImages;
+    console.log({PrimaryImage:colorsWithImages[0]?.images[0]});
+    
+    // Set primaryImage to the first image of the first color
+    const primaryImage = colorsWithImages[0]?.images[0] || '';
 
     // Validate the modified req.body with Joi
-    const { error, value } = productSchema.validate(req.body);
+    const { error, value } = productSchema.validate({ ...req.body, primaryImage });
     if (error) {
       res.status(400).json({
         message: 'Validation failed',
@@ -100,7 +105,7 @@ const createProduct = asyncHandler(async (req, res) => {
     }
 
     // Create and save the product
-    const product = new Product(value);
+    const product = new Product({ ...value, primaryImage });
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
 
@@ -137,8 +142,11 @@ const updateProduct = asyncHandler(async (req, res) => {
     // Replace the colors in req.body with the colors including image URLs
     req.body.colors = colorsWithImages;
 
+     // Set primaryImage to the first image of the first color
+     const primaryImage = colorsWithImages[0]?.images[0] || '';
+
     // Validate the modified req.body with Joi
-    const { error, value } = productSchema.validate(req.body);
+    const { error, value } = productSchema.validate({ ...req.body, primaryImage });
     if (error) {
       res.status(400).json({
         message: 'Validation failed',
@@ -150,7 +158,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     // Find the product by ID and update it
     const product = await Product.findById(req.params.id);
     if (product) {
-      Object.assign(product, value);
+      Object.assign(product, { ...value, primaryImage });
       const updatedProduct = await product.save();
       res.json(updatedProduct);
     } else {
