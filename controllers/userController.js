@@ -267,7 +267,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
   );
 
   // Send email with reset link
-  const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+  const resetLink = `https://custom-stores.vercel.app/reset-password/${resetToken}`;
   // Use a service like Nodemailer to send the email
   await sendResetEmail(user.email, resetLink);
 
