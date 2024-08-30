@@ -1,7 +1,6 @@
 const asyncHandler = require("express-async-handler");
-const Payment = require("../models/paymentModel");
 const Order = require("../models/orderModel");
-const razorpay = require("../config/razorPayConfig");
+const razorpay = require("../config/razorpayConfig");
 const crypto = require("crypto");
 const Product = require("../models/productModel");
 
