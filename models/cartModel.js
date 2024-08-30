@@ -1,16 +1,17 @@
 // models/cartModel.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const cartItemSchema = mongoose.Schema(
   {
     productId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
+      ref: "Product",
       required: true,
     },
     name: { type: String, required: true },
     price: { type: Number, required: true },
-    image:{type: String, required: true},
+    image: { type: String, required: true },
+    color: { type: String, required: true },
     quantity: { type: Number, required: true, default: 1 },
     totalCost: { type: Number, required: true },
   },
@@ -23,7 +24,7 @@ const cartSchema = mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     cartItems: [cartItemSchema],
@@ -34,6 +35,6 @@ const cartSchema = mongoose.Schema(
   }
 );
 
-const Cart = mongoose.model('Cart', cartSchema);
+const Cart = mongoose.model("Cart", cartSchema);
 
 module.exports = Cart;

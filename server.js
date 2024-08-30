@@ -10,6 +10,8 @@ const userRoutes = require("./routes/userRoutes");
 const cartRoutes = require("./routes/cartRoutes")
 const adminRoutes = require("./routes/adminRoutes")
 const categoryRoutes = require("./routes/categoryRoutes")
+const paymentRoutes = require("./routes/paymentRoutes")
+const orderRoutes = require("./routes/orderRoutes")
 const { errorHandler } = require("./middlewares/errorMiddleware");
 
 const app = express();
@@ -33,6 +35,8 @@ app.use("/api/user", userRoutes); // Route for handling user-related requests
 app.use('/api/cart', cartRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes)
+app.use('/api/payments', paymentRoutes)
+app.use('/api/orders', orderRoutes)
 // Start server
 app.listen(PORT, () => {
   logInfo(`Server running on port ${PORT}`); // Log a message indicating server is running
