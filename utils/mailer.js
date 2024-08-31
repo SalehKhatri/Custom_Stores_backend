@@ -110,7 +110,6 @@ const sendOrderConfirmationEmail = async (to, order) => {
       select: "name primaryImage",
     })
     .exec();
-  console.log(populatedOrder);
 
   const productList = populatedOrder.products
     .map(

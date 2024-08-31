@@ -96,7 +96,6 @@ const orderSchema = mongoose.Schema(
 
 // Pre-save middleware to generate custom order ID
 orderSchema.pre("validate", function (next) {
-  console.log("Runinng presave middleware");
   
   if (this.isNew) {
     // Generate a unique order ID
