@@ -22,7 +22,14 @@ const createOrderSchema = Joi.object({
 
 const updateOrderSchema = Joi.object({
   status: Joi.string()
-    .valid("Pending", "Processing", "Shipped", "Delivered", "Canceled")
+    .valid(
+      "Pending",
+      "Processing",
+      "Shipped",
+      "Delivered",
+      "Canceled",
+      "Completed"
+    )
     .optional(),
   trackingId: Joi.string().optional(),
   deliveryPartner: Joi.string().optional(),
@@ -128,7 +135,10 @@ const getAllOrders = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/user
 // @access  Private
 const getUserOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ user: req.user.id });
+  const orders = await Order.find({ user: req.user.id }).populate({
+    path: "products.productId",
+    select: "name primaryImage",
+  });
 
   if (orders) {
     res.json(orders);

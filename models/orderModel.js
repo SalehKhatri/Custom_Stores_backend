@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const addressSchema = new mongoose.Schema({
   street: {
@@ -25,6 +26,11 @@ const addressSchema = new mongoose.Schema({
 
 const orderSchema = mongoose.Schema(
   {
+    customOrderId: {
+      type: String,
+      unique: true,
+      required: true,
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -44,11 +50,18 @@ const orderSchema = mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["Pending", "Processing", "Shipped", "Delivered", "Canceled"],
+      enum: [
+        "Pending",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Canceled",
+        "Completed",
+      ],
       default: "Pending",
     },
-    trackingId: { type: String },
-    deliveryPartner: { type: String },
+    trackingId: { type: String, default: "Pending" },
+    deliveryPartner: { type: String, default: "Pending" },
     paymentMethod: {
       type: String,
       enum: ["Razorpay"],
@@ -80,6 +93,20 @@ const orderSchema = mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Pre-save middleware to generate custom order ID
+orderSchema.pre("validate", function (next) {
+  console.log("Runinng presave middleware");
+  
+  if (this.isNew) {
+    // Generate a unique order ID
+    this.customOrderId = `ORD-${crypto
+      .randomBytes(6)
+      .toString("hex")
+      .toUpperCase()}`;
+  }
+  next();
+});
 
 const Order = mongoose.model("Order", orderSchema);
 

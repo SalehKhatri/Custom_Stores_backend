@@ -3,6 +3,9 @@ const Order = require("../models/orderModel");
 const razorpay = require("../config/razorpayConfig");
 const crypto = require("crypto");
 const Product = require("../models/productModel");
+const User = require("../models/userModel");
+const { sendOrderConfirmationEmail } = require("../utils/mailer");
+const Cart = require("../models/cartModel");
 
 // @desc    Create a Razorpay order
 // @route   POST /api/payments/razorpay
@@ -23,6 +26,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
   const order = new Order({
     user: req.user.id,
     products,
+
     deliveryAddress,
     contactNumber,
     paymentMethod: "Razorpay", // Set payment method to Razorpay
@@ -62,7 +66,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
 // @route   POST /api/payments/verify
 // @access  Private
 const verifyPayment = asyncHandler(async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, cartId } =
     req.body;
 
   try {
@@ -91,8 +95,17 @@ const verifyPayment = asyncHandler(async (req, res) => {
     order.paymentStatus = "Completed";
 
     await order.save();
+    // Clear the cart items if cartId is passed
+    if (cartId) {
+      await Cart.findByIdAndUpdate(cartId, { $set: { cartItems: [] } });
+    }
 
-    res.json({ message: "Payment verified successfully", order });
+    const user = await User.findById(order.user);
+
+    if (user) {
+      await sendOrderConfirmationEmail(user.email, order);
+    }
+    res.status(200).json({ message: "Payment verified successfully", order });
   } catch (error) {
     res.status(500).json({ message: "Error verifying payment", error });
   }
