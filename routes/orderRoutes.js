@@ -5,6 +5,7 @@ const {
   updateOrder,
   getUserOrders,
   getOrderById,
+  searchOrderById,
 } = require("../controllers/orderController");
 const { protect, admin } = require("../middlewares/authMiddleware");
 
@@ -44,6 +45,12 @@ router.get(
   protect, // Middleware to check if the user is authenticated
   admin,
   getOrderById // Controller function to handle fetching a single order by ID for the user
+);
+router.post(
+  "/search",
+  protect, // Middleware to check if the user is authenticated
+  admin,
+  searchOrderById // Controller function to handle fetching a single order by ID for the user
 );
 
 module.exports = router;

@@ -6,6 +6,9 @@ const Product = require("../models/productModel");
 const User = require("../models/userModel");
 const { sendOrderConfirmationEmail } = require("../utils/mailer");
 const Cart = require("../models/cartModel");
+const {
+  validateWebhookSignature,
+} = require("razorpay/dist/utils/razorpay-utils");
 
 // @desc    Create a Razorpay order
 // @route   POST /api/payments/razorpay
@@ -62,6 +65,49 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
   }
 });
 
+const paymentCancelled = asyncHandler(async (req, res) => {
+  const { razorpayOrderId } = req.body;
+  if (razorpayOrderId) {
+    try {
+      const order = await Order.findOneAndDelete({ razorpayOrderId });
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res
+        .status(200)
+        .json({ message: "Deleted Order status Successfully!", order });
+    } catch (e) {
+      res.status(500).json({ message: "Server error!" });
+      console.log("An error occured!", e);
+    }
+  } else {
+    res.status(400).json({ message: "Razorpay Order Id is required!" });
+  }
+});
+
+const paymentFailed = asyncHandler(async (req, res) => {
+  const { razorpayOrderId } = req.body;
+  if (razorpayOrderId) {
+    try {
+      const order = await Order.findOne({ razorpayOrderId });
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      order.paymentId = "Failed";
+      order.paymentStatus = "Failed";
+      await order.save();
+
+      res
+        .status(200)
+        .json({ message: "Updated Order status to failed!", order });
+    } catch (e) {
+      res.status(500).json({ message: "Server error!" });
+      console.log("An error occured!", e);
+    }
+  } else {
+    res.status(400).json({ message: "Razorpay Order Id is required!" });
+  }
+});
 // @desc    Verify Razorpay payment and create a payment record
 // @route   POST /api/payments/verify
 // @access  Private
@@ -111,6 +157,74 @@ const verifyPayment = asyncHandler(async (req, res) => {
   }
 });
 
+const razorpayWebhook = asyncHandler(async (req, res) => {
+  // Razorpay webhook sends the payload and a signature header
+  const signature = req.headers["x-razorpay-signature"];
+  const isValid = await validateWebhookSignature(
+    req.rawBody,
+    signature,
+    process.env.RAZORPAY_WEBHOOK_SECRET
+  );
+  if (isValid) {
+    const { event, payload } = req.body;
+
+    switch (event) {
+      case "payment.authorized":
+        await handlePaymentAuthorized(req.body.payload.payment.entity);
+        break;
+      case "payment.failed":
+        await handlePaymentFailed(payload);
+        break;
+      default:
+        console.log(`Unhandled event: ${event}`);
+        break;
+    }
+  } else {
+    console.log("Signature is not valid!");
+  }
+  res.status(200).send();
+});
+
+// req.body.payload.payment.entity
+
+// Handle payment authorized
+const handlePaymentAuthorized = async (payment) => {
+
+  const razorpayOrderId = payment.order_id;
+  const razorpayPaymentId = payment.id;
+
+  const order = await Order.findOne({ razorpayOrderId });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  order.paymentId = razorpayPaymentId;
+  order.paymentStatus = "Completed";
+  await order.save();
+  const user = await User.findById(order.user);
+
+  if (user) {
+    await sendOrderConfirmationEmail(user.email, order);
+  }
+};
+
+// Handle payment failed
+const handlePaymentFailed = async (payment) => {
+
+  const razorpayOrderId = payment.payment.entity.order_id;
+    
+  const order = await Order.findOne({ razorpayOrderId });
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  order.paymentId = "Failed";
+  order.paymentStatus = "Failed";
+  await order.save();
+};
+
 const getRazopayKey = asyncHandler(async (req, res) => {
   const razorpayKey = process.env.RAZORPAY_TEST_KEY_ID;
   if (razorpayKey) {
@@ -122,6 +236,9 @@ const getRazopayKey = asyncHandler(async (req, res) => {
 
 module.exports = {
   createRazorpayOrder,
+  paymentCancelled,
+  paymentFailed,
   verifyPayment,
+  razorpayWebhook,
   getRazopayKey,
 };

@@ -120,25 +120,33 @@ const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find()
     .populate("user", "name email")
     .populate("products.productId", "name")
+    .populate({
+      path: "products.productId",
+      select: "name primaryImage",
+    })
     .sort({
       createdAt: -1, // Sort the rest of the orders by creation date in descending order
     });
 
-  if (!orders.length) {
-    return res.status(400).json({ message: "No orders found!" });
+  if (orders) {
+    res.json(orders);
+  } else {
+    res.status(404).json({ message: "No orders found" });
   }
-
-  res.json(orders);
 });
 
 // @desc    Get all orders for a user
 // @route   GET /api/orders/user
 // @access  Private
 const getUserOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ user: req.user.id }).populate({
-    path: "products.productId",
-    select: "name primaryImage",
-  });
+  const orders = await Order.find({ user: req.user.id })
+    .populate({
+      path: "products.productId",
+      select: "name primaryImage",
+    })
+    .sort({
+      createdAt: -1, // Sort the rest of the orders by creation date in descending order
+    });
 
   if (orders) {
     res.json(orders);
@@ -153,12 +161,39 @@ const getUserOrders = asyncHandler(async (req, res) => {
 const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate("user", "name email")
-    .populate("products.productId", "name");
+    .populate("products.productId", "name")
+    .populate("products.productId", "name")
+    .populate({
+      path: "products.productId",
+      select: "name primaryImage",
+    });
 
   if (order) {
     res.json(order);
   } else {
     res.status(404).json({ message: "Order not found or access denied" });
+  }
+});
+// @desc    Get a single order by ID for a user
+// @route   Post /api/orders/search
+// @access  Admin
+const searchOrderById = asyncHandler(async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId || !orderId.length) {
+    return res.status(400).json({ message: "Order Id is required!" });
+  }
+  const order = await Order.findOne({ customOrderId: orderId })
+    .populate("user", "name email")
+    .populate("products.productId", "name")
+    .populate({
+      path: "products.productId",
+      select: "name primaryImage",
+    });
+
+  if (order) {
+    res.json(order);
+  } else {
+    res.status(404).json({ message: "Order not found!" });
   }
 });
 
@@ -167,5 +202,6 @@ module.exports = {
   getAllOrders,
   updateOrder,
   getUserOrders,
+  searchOrderById,
   getOrderById,
 };
