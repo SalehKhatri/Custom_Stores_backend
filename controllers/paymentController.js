@@ -60,7 +60,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     res.json({ razorpayOrder, createdOrder });
   } catch (error) {
     // If Razorpay order creation fails, delete the created order
-    await createdOrder.remove();
+    await Order.findOneAndDelete({razorpayOrderId:razorpayOrder.id});
     res.status(500).json({ message: "Error creating Razorpay order", error });
   }
 });
