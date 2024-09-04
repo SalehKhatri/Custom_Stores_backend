@@ -29,7 +29,6 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
   const order = new Order({
     user: req.user.id,
     products,
-
     deliveryAddress,
     contactNumber,
     paymentMethod: "Razorpay", // Set payment method to Razorpay
@@ -60,7 +59,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     res.json({ razorpayOrder, createdOrder });
   } catch (error) {
     // If Razorpay order creation fails, delete the created order
-    await Order.findOneAndDelete({razorpayOrderId:razorpayOrder.id});
+    await Order.findOneAndDelete({id: createdOrder._id});
     res.status(500).json({ message: "Error creating Razorpay order", error });
   }
 });
