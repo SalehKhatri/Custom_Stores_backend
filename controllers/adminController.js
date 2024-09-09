@@ -1,9 +1,11 @@
 const asyncHandler = require("express-async-handler");
 const { verifyToken, generateToken } = require("../utils/jwtUtils");
+const bcrypt = require("bcryptjs");
+require("dotenv").config();
 
-// Hardcoded admin credentials
-const ADMIN_EMAIL = "admin@example.com";
-const ADMIN_PASSWORD = "adminpassword"; // This should be hashed in a real scenario
+// Load admin credentials from environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH; // Hashed password
 
 // @desc    Authenticate admin & get token
 // @route   POST /api/admin/login
@@ -11,13 +13,14 @@ const ADMIN_PASSWORD = "adminpassword"; // This should be hashed in a real scena
 const authAdmin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate admin credentials
+  // Validate admin email
   if (email !== ADMIN_EMAIL) {
     return res.status(401).json({ message: "Invalid email" });
   }
 
-  // Compare password
-  if (password !== ADMIN_PASSWORD) {
+  // Compare the provided password with the hashed password
+  const isPasswordMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+  if (!isPasswordMatch) {
     return res.status(401).json({ message: "Invalid password" });
   }
 
@@ -37,7 +40,7 @@ const authAdmin = asyncHandler(async (req, res) => {
 const getAdminProfile = asyncHandler(async (req, res) => {
   try {
     // Verify token from request headers
-    const token = req.headers.authorization?.split(' ')[1]; // Assumes Bearer token format
+    const token = req.headers.authorization?.split(" ")[1]; // Assumes Bearer token format
     if (!token) {
       return res.status(401).json({ message: "No token provided" });
     }
