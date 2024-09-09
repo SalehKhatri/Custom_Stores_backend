@@ -32,6 +32,11 @@ const addToCart = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Product not found");
   }
+  // Check if the product is in stock
+  if (!product.inStock) {
+    res.status(400);
+    throw new Error(`The product "${product.name}" is currently out of stock`);
+  }
 
   const productPrice = parseFloat(product.discountPrice);
 
@@ -164,7 +169,8 @@ const removeFromCart = asyncHandler(async (req, res) => {
       } else {
         // If only one item, remove it from the cart
         cart.cartItems = cart.cartItems.filter(
-          (item) => !(item.productId.toString() === productId && item.color === color)
+          (item) =>
+            !(item.productId.toString() === productId && item.color === color)
         );
       }
 
@@ -183,7 +189,6 @@ const removeFromCart = asyncHandler(async (req, res) => {
     res.status(404).json({ message: "Cart not found" });
   }
 });
-
 
 // @desc    Clear the cart
 // @route   DELETE /api/cart

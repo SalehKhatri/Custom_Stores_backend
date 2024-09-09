@@ -7,6 +7,7 @@ const {
   deleteProduct,
   getNewArrivals,
   getFeaturedProducts,
+  getProductsByCategory,
 } = require("../controllers/productController");
 const { protect, admin } = require("../middlewares/authMiddleware");
 const upload = require("../config/multerConfig");
@@ -35,6 +36,9 @@ router.post(
 
 // Route to fetch a product by its ID
 router.get("/:id", getProductById);
+// Route to fetch products by category
+router.get("/category/:category", getProductsByCategory);
+
 
 // Route to update a product by its ID
 // Requires authentication and admin privileges

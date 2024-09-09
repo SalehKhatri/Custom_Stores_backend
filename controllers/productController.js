@@ -73,6 +73,31 @@ const getProductById = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get products by category
+// @route   GET /api/products/category/:categoryId
+// @access  Public
+const getProductsByCategory = asyncHandler(async (req, res) => {
+  const { category } = req.params;
+
+  const categoryExists = await Category.find({ name: category });
+  if (!categoryExists) {
+    return res.status(404).json({
+      message: "Category not found",
+    });
+  }
+
+  const products = await Product.find({
+    category: categoryExists[0]._id,
+  }).populate("category", "name");
+  if (products.length > 0) {
+    res.json(products);
+  } else {
+    res.status(404).json({
+      message: "No products found for this category",
+    });
+  }
+});
+
 // @desc    Create a new product
 // @route   POST /api/products
 // @access  Private/Admin
@@ -192,6 +217,7 @@ module.exports = {
   getFeaturedProducts,
   getNewArrivals,
   getProductById,
+  getProductsByCategory,
   createProduct,
   updateProduct,
   deleteProduct,
