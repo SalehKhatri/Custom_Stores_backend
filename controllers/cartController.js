@@ -94,7 +94,10 @@ const addToCart = asyncHandler(async (req, res) => {
 // @route   GET /api/cart
 // @access  Private
 const getCart = asyncHandler(async (req, res) => {
-  const cart = await Cart.findOne({ user: req.user.id });
+  const cart = await Cart.findOne({ user: req.user.id }).populate(
+    "cartItems.productId",
+    "inStock"
+  );
 
   if (cart) {
     res.status(200).json(cart);
