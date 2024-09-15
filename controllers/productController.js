@@ -29,8 +29,21 @@ const productSchema = Joi.object({
 // @route   GET /api/products
 // @access  Public
 const getProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({}).populate("category", "name");
-  res.json(products);
+  const pageSize = Number(req.query.limit) || 10; // Limit number of products per page
+  const page = Number(req.query.page) || 1; // Current page number
+
+  const count = await Product.countDocuments(); // Total number of products
+  const products = await Product.find({})
+    .populate("category", "name")
+    .limit(pageSize)
+    .skip(pageSize * (page - 1)); // Skip products based on page
+
+  res.json({
+    products,
+    page,
+    pages: Math.ceil(count / pageSize), // Total number of pages
+    totalProducts: count,
+  });
 });
 
 // @desc    Get featured products
@@ -73,29 +86,39 @@ const getProductById = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get products by category
-// @route   GET /api/products/category/:categoryId
+// @desc    Get products by category with pagination
+// @route   GET /api/products/category/:category
 // @access  Public
 const getProductsByCategory = asyncHandler(async (req, res) => {
   const { category } = req.params;
+  const pageSize = Number(req.query.limit) || 10; // Limit number of products per page
+  const page = Number(req.query.page) || 1; // Current page number
 
-  const categoryExists = await Category.find({ name: category });
+  // Find the category by name
+  const categoryExists = await Category.findOne({ name: category });
+
   if (!categoryExists) {
     return res.status(404).json({
       message: "Category not found",
     });
   }
 
-  const products = await Product.find({
-    category: categoryExists[0]._id,
-  }).populate("category", "name");
-  if (products.length > 0) {
-    res.json(products);
-  } else {
-    res.status(404).json({
-      message: "No products found for this category",
-    });
-  }
+  // Get the total count of products in the category
+  const count = await Product.countDocuments({ category: categoryExists._id });
+
+  // Fetch the products with pagination
+  const products = await Product.find({ category: categoryExists._id })
+    .populate("category", "name")
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
+
+  // Return the products with pagination details
+  res.status(200).json({
+    products,
+    page,
+    pages: Math.ceil(count / pageSize), // Total number of pages
+    totalProducts: count, // Total number of products in the category
+  });
 });
 
 // @desc    Create a new product
